@@ -2,189 +2,198 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>MOMO 訂單助手 (18碼+品名降序版)</title>
+    <title>MOMO 訂單助手 (資料列複製版)</title>
     <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/handsontable/dist/handsontable.full.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/handsontable/dist/handsontable.full.min.js"></script>
     <style>
-        body { font-family: "Microsoft JhengHei", sans-serif; background-color: #f1f5f9; padding: 20px; color: #334155; line-height: 1.5; }
-        .container { max-width: 1200px; margin: 0 auto; }
-        .card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 30px; border-top: 5px solid #2563eb; position: relative; }
+        body { font-family: "Microsoft JhengHei", sans-serif; background-color: #f1f5f9; padding: 20px; color: #334155; }
+        .container { max-width: 1450px; margin: 0 auto; }
+        .card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 30px; border-top: 5px solid #2563eb; position: relative; overflow: hidden; }
         .card.step2 { border-top-color: #059669; }
-        h2 { margin-top: 0; color: #1e293b; font-size: 20px; border-bottom: 1px solid #e2e8f0; padding-bottom: 10px; }
-        .clear-btn { position: absolute; top: 20px; right: 25px; background: #ef4444; color: white; border: none; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: bold; }
-        .info-box { background: #eff6ff; padding: 12px; border-radius: 6px; font-size: 13px; color: #1e40af; margin-bottom: 15px; border: 1px solid #dbeafe; }
-        .table-container { overflow: auto; border: 1px solid #e2e8f0; border-radius: 8px; margin-top: 10px; max-height: 400px; background: #fff; }
-        table { width: 100%; border-collapse: collapse; font-size: 13px; }
-        th { background: #f8fafc; padding: 12px 10px; border-bottom: 2px solid #e2e8f0; text-align: left; position: sticky; top: 0; z-index: 10; white-space: nowrap; }
-        td { padding: 8px 10px; border-bottom: 1px solid #f1f5f9; max-width: 250px; word-wrap: break-word; }
-        .preview-header { display: flex; align-items: center; justify-content: space-between; margin-top: 20px; }
-        .count-badge { color: white; padding: 4px 12px; border-radius: 20px; font-size: 14px; font-weight: bold; }
-        .blue { background: #2563eb; } .green { background: #059669; } .orange { background: #f97316; } .gray { background: #94a3b8; }
-        .export-panel { background: #f8fafc; padding: 15px; border-radius: 8px; margin: 15px 0; border: 1px solid #e2e8f0; display: flex; align-items: center; gap: 10px; }
-        input[type="text"], input[type="file"] { padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; background: #fff; outline: none; }
-        input[type="file"] { width: 100%; background: #f8fafc; cursor: pointer; margin-bottom: 10px; }
-        .btn { width: 100%; padding: 15px; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; transition: 0.2s; margin-top: 10px; }
+        h2 { margin-top: 0; color: #1e293b; font-size: 18px; border-bottom: 1px solid #e2e8f0; padding-bottom: 10px; }
+        .info-box { background: #eff6ff; padding: 10px; border-radius: 6px; font-size: 13px; color: #1e40af; margin-bottom: 15px; border: 1px solid #dbeafe; }
+        
+        #ht_wrapper { width: 100%; height: 350px; overflow: hidden; border: 1px solid #cbd5e1; border-radius: 6px; }
+        
+        .table-container { overflow: auto; border: 1px solid #e2e8f0; border-radius: 8px; margin-top: 10px; max-height: 500px; background: #fff; }
+        table { width: 100%; border-collapse: collapse; font-size: 12px; table-layout: fixed; }
+        th { background: #f8fafc; padding: 10px; border-bottom: 2px solid #e2e8f0; text-align: left; position: sticky; top: 0; z-index: 5; white-space: nowrap; }
+        td { padding: 6px 8px; border-bottom: 1px solid #f1f5f9; border-right: 1px solid #f1f5f9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+        .highlight { background-color: #fef08a !important; font-weight: bold; color: #854d0e; }
+
+        .btn { padding: 10px 18px; border: none; border-radius: 8px; font-size: 14px; font-weight: bold; cursor: pointer; transition: 0.2s; margin-top: 10px; margin-right: 10px; }
         .btn-blue { background: #2563eb; color: white; }
         .btn-green { background: #059669; color: white; }
-        .btn-orange { background: #f97316; color: white; margin-bottom: 10px; }
-        .btn:disabled { background: #cbd5e1; cursor: not-allowed; }
+        .btn-copy-all { background: #7c3aed; color: white; }
+        .clear-btn { position: absolute; top: 20px; right: 25px; background: #ef4444; color: white; border: none; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 13px; z-index: 10; }
+
+        .preview-header { display: flex; align-items: center; justify-content: space-between; margin-top: 20px; }
+        .count-badge { color: white; padding: 4px 12px; border-radius: 20px; font-size: 13px; font-weight: bold; }
+        .blue { background: #2563eb; } .green { background: #059669; } .orange { background: #f97316; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <div class="card" id="card1">
-        <h2>第一階段：提取 9 項待出貨清單 (18碼 + 品名降序)</h2>
+    
+    <div class="card">
+        <h2>第一階段：網頁格子貼上資料</h2>
         <button class="clear-btn" onclick="location.reload()">清除重整</button>
-        <div class="info-box">規則：提取「一般訂單」。排序：品名(Z→A) ＞ 單品詳細(A→Z)。</div>
-        <input type="file" id="s1_file" accept=".xlsx">
+        <div class="info-box">教學：全選複製原始 Excel，貼入下方格子。</div>
+        <div id="ht_wrapper"><div id="ht_container"></div></div>
+        <button class="btn btn-blue" onclick="processS1()">1. 解析並產出排序清單</button>
 
-        <div id="s1_preview" class="preview-section" style="display:none;">
+        <div id="s1_preview" style="display:none;">
             <div class="preview-header">
-                <h3>✅ 符合：一般訂單 (品名降序預覽)</h3>
-                <span id="s1_total_count" class="count-badge blue">0 筆</span>
+                <h3>✅ 待出貨 9 項清單 (已排序)</h3>
+                <span id="s1_count" class="count-badge blue">0 筆</span>
             </div>
+            <div class="table-container"><table id="s1_table"><thead><tr id="s1_h"></tr></thead><tbody id="s1_b"></tbody></table></div>
+            <button class="btn btn-blue" onclick="exportS1()">下載 9 項清單 Excel</button>
+        </div>
+    </div>
+
+    <div class="card step2">
+        <h2>最終回填區域 (不含標題，僅複製資料值)</h2>
+        <div class="info-box">複製後，請點擊 Excel **第一筆資料的第一格**（排除標題）按 Ctrl+V 貼上。</div>
+        <input type="file" id="track_file" accept=".xlsx" style="margin-bottom:10px;">
+        <button class="btn btn-green" id="run_btn" onclick="generateFinalTable()" disabled>2. 開始比對並標註變動</button>
+        <button class="btn btn-copy-all" id="copy_all_btn" onclick="copyDataOnly()" style="display:none;">📋 一鍵複製全資料值 (排除標題)</button>
+
+        <div id="s2_preview" style="display:none; margin-top:20px;">
             <div class="table-container">
-                <table><thead id="s1_h"></thead><tbody id="s1_b"></tbody></table>
+                <table id="final_table"><thead id="final_h"></thead><tbody id="final_b"></tbody></table>
             </div>
-            <div class="export-panel">
-                <label>📁 儲存檔名：</label>
-                <input type="text" id="s1_filename" value="MOMO待出貨清單" style="flex-grow:1;">
-            </div>
-            <button class="btn btn-blue" id="s1_btn">下載 9 項清單 Excel</button>
         </div>
     </div>
 
-    <div class="card step2" id="card2">
-        <h2>第二階段：回填貨單與特定狀態更新 (18碼)</h2>
-        <button class="clear-btn" onclick="location.reload()">清除重整</button>
-        <div class="info-box">規則：比對前 18 碼。一般件對到貨號填新竹/已配送/原箱。交換件自動填入訊息。</div>
-        <label>1. 上傳原始完整檔 (.xlsx)：</label><input type="file" id="s2_main" accept=".xlsx">
-        <label>2. 上傳物流貨號檔 (.xlsx)：</label><input type="file" id="s2_track" accept=".xlsx">
-
-        <button class="btn btn-orange" id="s2_run_btn" disabled>開始比對資料</button>
-
-        <div id="s2_preview" class="preview-section" style="display:none;">
-            <div class="preview-header"><h3>🔄 交換配送訂單 (自動更新)</h3><span id="s2_count_exchange" class="count-badge orange">0 筆</span></div>
-            <div class="table-container"><table><thead><tr><th>訂單編號(18碼)</th><th>配送狀態</th><th>配送訊息</th><th>物流公司</th></tr></thead><tbody id="s2_b_exchange"></tbody></table></div>
-
-            <div class="preview-header" style="margin-top:20px;"><h3>📦 一般訂單 (更新貨單+包材)</h3><span id="s2_count_normal" class="count-badge green">0 筆</span></div>
-            <div class="table-container"><table><thead><tr><th>訂單編號(18碼)</th><th>配送單號</th><th>物流/狀態</th><th>出貨包材</th></tr></thead><tbody id="s2_b_normal"></tbody></table></div>
-
-            <div class="export-panel"><label>📁 儲存檔名：</label><input type="text" id="s2_filename" value="MOMO回填結果" style="flex-grow:1;"></div>
-            <button class="btn btn-green" id="s2_btn">下載完整回填 Excel</button>
-        </div>
-    </div>
 </div>
 
 <script>
-    const TARGET_9 = ["項次+燈號", "訂單編號", "收件人姓名", "收件人電話", "收件人地址", "品號", "品名", "單品詳細", "數量"];
-    function findKey(row, target) {
-        return Object.keys(row).find(k => k.replace(/[\s\r\n\(\)（）]+/g, '').includes(target.replace(/\s+/g, '')));
-    }
-    async function readExcel(file) {
-        const ab = await file.arrayBuffer();
-        const wb = XLSX.read(ab, { type: 'array' });
-        return XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: "" });
+    const T9 = ["項次+燈號", "訂單編號", "收件人姓名", "收件人電話", "收件人地址", "品號", "品名", "單品詳細", "數量"];
+    let hot, rawHeaders = [], rawRows = [], trackMap = new Map();
+
+    hot = new Handsontable(document.getElementById('ht_container'), {
+        data: [Array(30).fill("")], rowHeaders: true, colHeaders: true, minCols: 30, minRows: 50, contextMenu: true, stretchH: 'all', licenseKey: 'non-commercial-and-evaluation'
+    });
+
+    function getIdx(headers, name) {
+        return headers.findIndex(h => h.replace(/[\s\r\n\(\)（）]+/g, '').includes(name.replace(/\s+/g, '')));
     }
 
-    // 第一階段
-    let s1_final_v = [];
-    document.getElementById('s1_file').onchange = async (e) => {
-        const file = e.target.files[0];
-        if(!file) return;
-        const json = await readExcel(file);
-        let v = [], iv = [];
-        json.forEach(row => {
-            const rawCat = String(row[findKey(row, "訂單類別")] || "");
-            let o = {};
-            TARGET_9.forEach(c => { o[c] = row[findKey(row, c)] || ""; });
-            if (rawCat.includes("一般")) v.push(o);
+    function processS1() {
+        const data = hot.getData();
+        rawHeaders = data[0].map(h => String(h || "").trim());
+        rawRows = data.slice(1).filter(r => r.some(c => c !== "" && c !== null));
+        if (rawHeaders.length < 5) return alert("請確認是否已貼入資料含標題");
+
+        const catIdx = getIdx(rawHeaders, "訂單類別");
+        let v = rawRows.filter(r => String(r[catIdx] || "").includes("一般")).map(r => {
+            let o = {}; T9.forEach(h => o[h] = r[getIdx(rawHeaders, h)] || ""); return o;
         });
 
-        // 修改：排序邏輯
-        v.sort((a, b) => {
-            // 品名：由大到小 (降序)
-            if (a["品名"] > b["品名"]) return -1;
-            if (a["品名"] < b["品名"]) return 1;
-            // 品名相同時，單品詳細：由小到大 (升序)
-            if (a["單品詳細"] < b["單品詳細"]) return -1;
-            if (a["單品詳細"] > b["單品詳細"]) return 1;
+        v.sort((a,b) => {
+            if (a["品名"] > b["品名"]) return -1; if (a["品名"] < b["品名"]) return 1;
+            if (a["單品詳細"] < b["單品詳細"]) return -1; if (a["單品詳細"] > b["單品詳細"]) return 1;
             return 0;
         });
 
-        s1_final_v = v;
-        document.getElementById('s1_total_count').innerText = `${v.length} 筆`;
-        document.getElementById('s1_h').innerHTML = `<tr>${TARGET_9.map(c=>`<th>${c}</th>`).join('')}</tr>`;
-        document.getElementById('s1_b').innerHTML = v.map(r => `<tr>${TARGET_9.map(c=>`<td>${r[c]}</td>`).join('')}</tr>`).join('');
-        document.getElementById('s1_preview').style.display = "block";
-    };
+        document.getElementById('s1_count').innerText = `${v.length} 筆`;
+        document.getElementById('s1_h').innerHTML = T9.map(h=>`<th>${h}</th>`).join('');
+        document.getElementById('s1_b').innerHTML = v.map(r => `<tr>${T9.map(h=>`<td>${r[h]}</td>`).join('')}</tr>`).join('');
+        document.getElementById('s1_preview').style.display = 'block';
+        document.getElementById('run_btn').disabled = false;
+        alert("解析完成！");
+    }
 
-    document.getElementById('s1_btn').onclick = () => {
-        const ws = XLSX.utils.json_to_sheet(s1_final_v);
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, "待出貨");
-        XLSX.writeFile(wb, `${document.getElementById('s1_filename').value}.xlsx`);
-    };
+    function exportS1() {
+        const ws = XLSX.utils.json_to_sheet(rawRows.filter(r => String(r[getIdx(rawHeaders, "訂單類別")] || "").includes("一般")).map(r => {
+            let o = {}; T9.forEach(h => o[h] = r[getIdx(rawHeaders, h)] || ""); return o;
+        }).sort((a,b)=>{
+            if (a["品名"] > b["品名"]) return -1; if (a["品名"] < b["品名"]) return 1;
+            return a["單品詳細"] < b["單品詳細"] ? -1 : 1;
+        }));
+        const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "待出貨");
+        XLSX.writeFile(wb, "MOMO待出貨清單.xlsx");
+    }
 
-    // 第二階段
-    let s2_main_json = null, s2_track_map = new Map();
-    document.getElementById('s2_main').onchange = async (e) => { 
-        s2_main_json = await readExcel(e.target.files[0]); 
-        if(s2_main_json) document.getElementById('s2_run_btn').disabled = false;
-    };
-    document.getElementById('s2_track').onchange = async (e) => {
-        const json = await readExcel(e.target.files[0]);
-        s2_track_map.clear();
+    document.getElementById('track_file').onchange = async (e) => {
+        const ab = await e.target.files[0].arrayBuffer();
+        const wb = XLSX.read(ab, { type: 'array' });
+        const json = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: "" });
+        trackMap.clear();
         json.forEach(row => {
-            const ok = row[findKey(row, "訂單編號")] || row[findKey(row, "訂單號碼")];
-            const tk = row[findKey(row, "十碼貨號")] || row[findKey(row, "貨號")];
-            if(ok && tk) s2_track_map.set(String(ok).trim().substring(0, 18), String(tk).trim());
+            const ok = row[Object.keys(row).find(k=>k.includes("訂單編號")||k.includes("訂單號碼"))];
+            const tk = row[Object.keys(row).find(k=>k.includes("十碼貨號")||k.includes("貨號"))];
+            if(ok && tk) trackMap.set(String(ok).trim().substring(0, 18), String(tk).trim());
         });
     };
 
-    document.getElementById('s2_run_btn').onclick = () => {
-        let n = [], ex = [];
-        s2_main_json.forEach(row => {
-            const fullId = String(row[findKey(row, "訂單編號")] || row[findKey(row, "訂單號碼")] || "").trim();
-            const id18 = fullId.substring(0, 18);
-            const rawCat = String(row[findKey(row, "訂單類別")] || "");
-            if (rawCat.includes("交換")) {
-                ex.push({ id: fullId, status: "自行備註...", msg: "最晚明日回覆" });
-            } 
-            else if(id18 && s2_track_map.has(id18)) {
-                n.push({ id: id18, tk: s2_track_map.get(id18), info: "新竹/已配送", pkg: "原箱" });
-            }
-        });
-        document.getElementById('s2_count_normal').innerText = `${n.length} 筆`;
-        document.getElementById('s2_count_exchange').innerText = `${ex.length} 筆`;
-        document.getElementById('s2_b_normal').innerHTML = n.map(r => `<tr><td>${r.id}</td><td>${r.track}</td><td>${r.info}</td><td>${r.pkg}</td></tr>`).join('');
-        document.getElementById('s2_b_exchange').innerHTML = ex.map(r => `<tr><td>${r.id}</td><td>${r.status}</td><td>${r.msg}</td><td>(不填)</td></tr>`).join('');
-        document.getElementById('s2_preview').style.display = "block";
-    };
+    function generateFinalTable() {
+        const body = document.getElementById('final_b');
+        document.getElementById('final_h').innerHTML = `<tr>${rawHeaders.map(h=>`<th>${h}</th>`).join('')}</tr>`;
+        body.innerHTML = "";
 
-    document.getElementById('s2_btn').onclick = () => {
-        const result = s2_main_json.map(row => {
-            const idKey = findKey(row, "訂單編號") || findKey(row, "訂單號碼");
-            const fullId = String(row[idKey] || "").trim();
-            const id18 = fullId.substring(0, 18);
-            const rawCat = String(row[findKey(row, "訂單類別")] || "");
-            if (rawCat.includes("交換")) {
-                row[findKey(row, "配送狀態") || "配送狀態(說明參考Desc)"] = "自行備註，不須momo協助";
-                row[findKey(row, "配送訊息") || "配送訊息"] = "最晚明日回覆";
-                if(id18 && s2_track_map.has(id18)) row[findKey(row, "配送單號") || "配送單號"] = s2_track_map.get(id18);
-            } 
-            else if(id18 && s2_track_map.has(id18)) {
-                row[findKey(row, "配送單號") || "配送單號"] = s2_track_map.get(id18);
-                row[findKey(row, "物流公司") || "物流公司(說明參考Desc)"] = "新竹貨運";
-                row[findKey(row, "配送狀態") || "配送狀態(說明參考Desc)"] = "已配送";
-                row[findKey(row, "出貨包材") || "出貨包材"] = "原箱";
+        const idx = {
+            id: getIdx(rawHeaders, "訂單編號"),
+            cat: getIdx(rawHeaders, "訂單類別"),
+            track: getIdx(rawHeaders, "配送單號"),
+            courier: getIdx(rawHeaders, "物流公司"),
+            status: getIdx(rawHeaders, "配送狀態"),
+            msg: getIdx(rawHeaders, "配送訊息"),
+            pkg: getIdx(rawHeaders, "出貨包材")
+        };
+
+        rawRows.forEach(row => {
+            let newRow = [...row];
+            let changed = new Set();
+            const id18 = String(newRow[idx.id] || "").trim().substring(0, 18);
+            const cat = String(newRow[idx.cat] || "");
+
+            if (cat.includes("交換")) {
+                newRow[idx.status] = "自行備註，不須momo協助"; changed.add(idx.status);
+                newRow[idx.msg] = "最晚明日回覆"; changed.add(idx.msg);
+                if (id18 && trackMap.has(id18)) { newRow[idx.track] = trackMap.get(id18); changed.add(idx.track); }
+            } else if (id18 && trackMap.has(id18)) {
+                newRow[idx.track] = trackMap.get(id18); changed.add(idx.track);
+                newRow[idx.courier] = "新竹貨運"; changed.add(idx.courier);
+                newRow[idx.status] = "已配送"; changed.add(idx.status);
+                newRow[idx.pkg] = "原箱"; changed.add(idx.pkg);
             }
-            return row;
+
+            const tr = document.createElement('tr');
+            newRow.forEach((cell, i) => {
+                const td = document.createElement('td');
+                td.innerText = cell;
+                if (changed.has(i)) td.className = "highlight";
+                tr.appendChild(td);
+            });
+            body.appendChild(tr);
         });
-        const ws = XLSX.utils.json_to_sheet(result);
-        const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "結果");
-        XLSX.writeFile(wb, `${document.getElementById('s2_filename').value}.xlsx`);
-    };
+
+        document.getElementById('s2_preview').style.display = 'block';
+        document.getElementById('copy_all_btn').style.display = 'inline-block';
+    }
+
+    // 🔴 修改點：只複製資料行 (從 tbody 抓)
+    function copyDataOnly() {
+        const body = document.getElementById('final_b');
+        let text = "";
+        const rows = Array.from(body.querySelectorAll('tr'));
+        
+        rows.forEach(tr => {
+            const cells = Array.from(tr.querySelectorAll('td')).map(td => td.innerText);
+            text += cells.join('\t') + '\n';
+        });
+
+        if (!text) return alert("沒有資料可以複製！");
+
+        navigator.clipboard.writeText(text).then(() => {
+            alert("✅ 全資料值已複製 (排除標題)！\n請回到 Excel，點擊第一筆資料的左上角第一格貼上。");
+        });
+    }
 </script>
 </body>
 </html>
