@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>MOMO 訂單助手 (自動排序優化版)</title>
+    <title>MOMO 訂單助手 (18 碼比對版)</title>
     <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
     <style>
         body { font-family: "Microsoft JhengHei", sans-serif; background-color: #f1f5f9; padding: 20px; color: #334155; line-height: 1.5; }
@@ -37,9 +37,9 @@
 <div class="container">
     
     <div class="card" id="card1">
-        <h2>第一階段：提取 9 項待出貨清單 (自動排序)</h2>
+        <h2>第一階段：提取 9 項待出貨清單 (18 碼比對)</h2>
         <button class="clear-btn" onclick="location.reload()">清除重整</button>
-        <div class="info-box">規則：僅提取「一般訂單」。匯出前將先按<b>品名</b>排序，再按<b>單品詳細</b>排序。</div>
+        <div class="info-box">規則：提取「一般訂單」。匯出前按<b>品名</b>排序，再按<b>單品詳細</b>排序。</div>
         <input type="file" id="s1_file" accept=".xlsx">
 
         <div id="s1_preview" class="preview-section" style="display:none;">
@@ -68,9 +68,9 @@
     </div>
 
     <div class="card step2" id="card2">
-        <h2>第二階段：回填貨單與特定狀態更新</h2>
+        <h2>第二階段：回填貨單與特定狀態更新 (18 碼比對)</h2>
         <button class="clear-btn" onclick="location.reload()">清除重整</button>
-        <div class="info-box">規則：一般件對到貨號填新竹/已配送/原箱。交換件自動填入特定訊息且不填物流公司。</div>
+        <div class="info-box">規則：比對編號<b>前 18 碼</b>。一般件對到貨號填新竹/已配送/原箱。交換件自動填入訊息。</div>
         <label>1. 上傳原始完整檔 (.xlsx)：</label><input type="file" id="s2_main" accept=".xlsx">
         <label>2. 上傳物流貨號檔 (.xlsx)：</label><input type="file" id="s2_track" accept=".xlsx">
 
@@ -83,7 +83,7 @@
             </div>
             <div class="table-container">
                 <table>
-                    <thead><tr><th>訂單編號</th><th>配送狀態</th><th>配送訊息</th><th>物流公司</th></tr></thead>
+                    <thead><tr><th>訂單編號(18碼)</th><th>配送狀態</th><th>配送訊息</th><th>物流公司</th></tr></thead>
                     <tbody id="s2_b_exchange"></tbody>
                 </table>
             </div>
@@ -94,7 +94,7 @@
             </div>
             <div class="table-container">
                 <table>
-                    <thead><tr><th>訂單編號</th><th>配送單號</th><th>物流/狀態</th><th>出貨包材</th></tr></thead>
+                    <thead><tr><th>訂單編號(18碼)</th><th>配送單號</th><th>物流/狀態</th><th>出貨包材</th></tr></thead>
                     <tbody id="s2_b_normal"></tbody>
                 </table>
             </div>
@@ -134,11 +134,9 @@
             else { o["原因"] = rawCat.replace(/[\r\n]+/g, ' '); iv.push(o); }
         });
 
-        // 🟢 執行多重排序：品名 -> 單品詳細
         v.sort((a, b) => {
             if (a["品名"] < b["品名"]) return -1;
             if (a["品名"] > b["品名"]) return 1;
-            // 品名相同時，比較單品詳細
             if (a["單品詳細"] < b["單品詳細"]) return -1;
             if (a["單品詳細"] > b["單品詳細"]) return 1;
             return 0;
@@ -161,7 +159,7 @@
         XLSX.writeFile(wb, `${document.getElementById('s1_filename').value}.xlsx`);
     };
 
-    // --- 第二階段 (維持原邏輯) ---
+    // --- 第二階段 ---
     let s2_main_json = null, s2_track_map = new Map();
     document.getElementById('s2_main').onchange = async (e) => { 
         s2_main_json = await readExcel(e.target.files[0]); 
@@ -173,7 +171,8 @@
         json.forEach(row => {
             const ok = row[findKey(row, "訂單編號")] || row[findKey(row, "訂單號碼")];
             const tk = row[findKey(row, "十碼貨號")] || row[findKey(row, "貨號")];
-            if(ok && tk) s2_track_map.set(String(ok).trim().substring(0, 14), String(tk).trim());
+            // 修改點：取 18 碼
+            if(ok && tk) s2_track_map.set(String(ok).trim().substring(0, 18), String(tk).trim());
         });
     };
 
@@ -181,18 +180,19 @@
         let n = [], ex = [];
         s2_main_json.forEach(row => {
             const fullId = String(row[findKey(row, "訂單編號")] || row[findKey(row, "訂單號碼")] || "").trim();
-            const id14 = fullId.substring(0, 14);
+            // 修改點：取 18 碼
+            const id18 = fullId.substring(0, 18);
             const rawCat = String(row[findKey(row, "訂單類別")] || "");
             if (rawCat.includes("交換")) {
                 ex.push({ id: fullId, status: "自行備註...", msg: "最晚明日回覆" });
             } 
-            else if(id14 && s2_track_map.has(id14)) {
-                n.push({ id: id14, tk: s2_track_map.get(id14), info: "新竹/已配送", pkg: "原箱" });
+            else if(id18 && s2_track_map.has(id18)) {
+                n.push({ id: id18, tk: s2_track_map.get(id18), info: "新竹/已配送", pkg: "原箱" });
             }
         });
         document.getElementById('s2_count_normal').innerText = `${n.length} 筆`;
         document.getElementById('s2_count_exchange').innerText = `${ex.length} 筆`;
-        document.getElementById('s2_b_normal').innerHTML = n.map(r => `<tr><td>${r.id}</td><td>${r.tk}</td><td>${r.info}</td><td>${r.pkg}</td></tr>`).join('');
+        document.getElementById('s2_b_normal').innerHTML = n.map(r => `<tr><td>${r.id}</td><td>${r.track}</td><td>${r.info}</td><td>${r.pkg}</td></tr>`).join('');
         document.getElementById('s2_b_exchange').innerHTML = ex.map(r => `<tr><td>${r.id}</td><td>${r.status}</td><td>${r.msg}</td><td>(不填)</td></tr>`).join('');
         document.getElementById('s2_preview').style.display = "block";
     };
@@ -201,15 +201,16 @@
         const result = s2_main_json.map(row => {
             const idKey = findKey(row, "訂單編號") || findKey(row, "訂單號碼");
             const fullId = String(row[idKey] || "").trim();
-            const id14 = fullId.substring(0, 14);
+            // 修改點：取 18 碼
+            const id18 = fullId.substring(0, 18);
             const rawCat = String(row[findKey(row, "訂單類別")] || "");
             if (rawCat.includes("交換")) {
                 row[findKey(row, "配送狀態") || "配送狀態(說明參考Desc)"] = "自行備註，不須momo協助";
                 row[findKey(row, "配送訊息") || "配送訊息"] = "最晚明日回覆";
-                if(id14 && s2_track_map.has(id14)) row[findKey(row, "配送單號") || "配送單號"] = s2_track_map.get(id14);
+                if(id18 && s2_track_map.has(id18)) row[findKey(row, "配送單號") || "配送單號"] = s2_track_map.get(id18);
             } 
-            else if(id14 && s2_track_map.has(id14)) {
-                row[findKey(row, "配送單號") || "配送單號"] = s2_track_map.get(id14);
+            else if(id18 && s2_track_map.has(id18)) {
+                row[findKey(row, "配送單號") || "配送單號"] = s2_track_map.get(id18);
                 row[findKey(row, "物流公司") || "物流公司(說明參考Desc)"] = "新竹貨運";
                 row[findKey(row, "配送狀態") || "配送狀態(說明參考Desc)"] = "已配送";
                 row[findKey(row, "出貨包材") || "出貨包材"] = "原箱";
