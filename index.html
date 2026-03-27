@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>MOMO 訂單助手 (全預覽滑動版)</title>
+    <title>MOMO 訂單助手 (自動排序優化版)</title>
     <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
     <style>
         body { font-family: "Microsoft JhengHei", sans-serif; background-color: #f1f5f9; padding: 20px; color: #334155; line-height: 1.5; }
@@ -13,48 +13,17 @@
         .clear-btn { position: absolute; top: 20px; right: 25px; background: #ef4444; color: white; border: none; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: bold; }
         .info-box { background: #eff6ff; padding: 12px; border-radius: 6px; font-size: 13px; color: #1e40af; margin-bottom: 15px; border: 1px solid #dbeafe; }
         
-        /* 表格容器優化：固定高度、內部滑動 */
-        .table-container { 
-            overflow: auto; 
-            border: 1px solid #e2e8f0; 
-            border-radius: 8px; 
-            margin-top: 10px; 
-            max-height: 400px; /* 限制高度，超過會出現捲軸 */
-            background: #fff;
-        }
-        
-        table { 
-            width: 100%; 
-            border-collapse: collapse; 
-            font-size: 13px; 
-            table-layout: auto; /* 自動調整欄寬但受限 */
-        }
-        
-        th { 
-            background: #f8fafc; 
-            padding: 12px 10px; 
-            border-bottom: 2px solid #e2e8f0; 
-            text-align: left; 
-            position: sticky; 
-            top: 0; 
-            z-index: 10;
-            white-space: nowrap; 
-        }
-        
-        td { 
-            padding: 8px 10px; 
-            border-bottom: 1px solid #f1f5f9; 
-            max-width: 250px; /* 限制單一欄位最大寬度 */
-            word-wrap: break-word; 
-            overflow-wrap: break-word;
-        }
+        .table-container { overflow: auto; border: 1px solid #e2e8f0; border-radius: 8px; margin-top: 10px; max-height: 400px; background: #fff; }
+        table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        th { background: #f8fafc; padding: 12px 10px; border-bottom: 2px solid #e2e8f0; text-align: left; position: sticky; top: 0; z-index: 10; white-space: nowrap; }
+        td { padding: 8px 10px; border-bottom: 1px solid #f1f5f9; max-width: 250px; word-wrap: break-word; }
 
         .preview-header { display: flex; align-items: center; justify-content: space-between; margin-top: 20px; }
         .count-badge { color: white; padding: 4px 12px; border-radius: 20px; font-size: 14px; font-weight: bold; }
         .blue { background: #2563eb; } .green { background: #059669; } .orange { background: #f97316; } .gray { background: #94a3b8; }
         
         .export-panel { background: #f8fafc; padding: 15px; border-radius: 8px; margin: 15px 0; border: 1px solid #e2e8f0; display: flex; align-items: center; gap: 10px; }
-        input[type="text"], input[type="file"] { padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; background: #fff; outline: none; }
+        input[type="text"], input[type="file"] { padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; background: #fff; }
         input[type="file"] { width: 100%; background: #f8fafc; cursor: pointer; margin-bottom: 10px; }
         .btn { width: 100%; padding: 15px; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; transition: 0.2s; margin-top: 10px; }
         .btn-blue { background: #2563eb; color: white; }
@@ -68,14 +37,14 @@
 <div class="container">
     
     <div class="card" id="card1">
-        <h2>第一階段：提取 9 項待出貨清單</h2>
+        <h2>第一階段：提取 9 項待出貨清單 (自動排序)</h2>
         <button class="clear-btn" onclick="location.reload()">清除重整</button>
-        <div class="info-box">提取「一般訂單」，其他類別將被過濾並顯示在下方供核對。</div>
+        <div class="info-box">規則：僅提取「一般訂單」。匯出前將先按<b>品名</b>排序，再按<b>單品詳細</b>排序。</div>
         <input type="file" id="s1_file" accept=".xlsx">
 
         <div id="s1_preview" class="preview-section" style="display:none;">
             <div class="preview-header">
-                <h3>✅ 符合：一般訂單 (預覽全列表)</h3>
+                <h3>✅ 符合：一般訂單 (預覽排序後結果)</h3>
                 <span id="s1_total_count" class="count-badge blue">0 筆</span>
             </div>
             <div class="table-container">
@@ -164,6 +133,17 @@
             if (rawCat.includes("一般")) v.push(o);
             else { o["原因"] = rawCat.replace(/[\r\n]+/g, ' '); iv.push(o); }
         });
+
+        // 🟢 執行多重排序：品名 -> 單品詳細
+        v.sort((a, b) => {
+            if (a["品名"] < b["品名"]) return -1;
+            if (a["品名"] > b["品名"]) return 1;
+            // 品名相同時，比較單品詳細
+            if (a["單品詳細"] < b["單品詳細"]) return -1;
+            if (a["單品詳細"] > b["單品詳細"]) return 1;
+            return 0;
+        });
+
         s1_final_v = v;
         document.getElementById('s1_total_count').innerText = `${v.length} 筆`;
         document.getElementById('s1_fail_count').innerText = `${iv.length} 筆`;
@@ -181,7 +161,7 @@
         XLSX.writeFile(wb, `${document.getElementById('s1_filename').value}.xlsx`);
     };
 
-    // --- 第二階段 ---
+    // --- 第二階段 (維持原邏輯) ---
     let s2_main_json = null, s2_track_map = new Map();
     document.getElementById('s2_main').onchange = async (e) => { 
         s2_main_json = await readExcel(e.target.files[0]); 
@@ -212,7 +192,7 @@
         });
         document.getElementById('s2_count_normal').innerText = `${n.length} 筆`;
         document.getElementById('s2_count_exchange').innerText = `${ex.length} 筆`;
-        document.getElementById('s2_b_normal').innerHTML = n.map(r => `<tr><td>${r.id}</td><td>${r.track}</td><td>${r.info}</td><td>${r.pkg}</td></tr>`).join('');
+        document.getElementById('s2_b_normal').innerHTML = n.map(r => `<tr><td>${r.id}</td><td>${r.tk}</td><td>${r.info}</td><td>${r.pkg}</td></tr>`).join('');
         document.getElementById('s2_b_exchange').innerHTML = ex.map(r => `<tr><td>${r.id}</td><td>${r.status}</td><td>${r.msg}</td><td>(不填)</td></tr>`).join('');
         document.getElementById('s2_preview').style.display = "block";
     };
