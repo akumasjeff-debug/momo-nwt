@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>MOMO 訂單助手 (18 碼比對版)</title>
+    <title>MOMO 訂單助手 (18碼+品名降序版)</title>
     <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
     <style>
         body { font-family: "Microsoft JhengHei", sans-serif; background-color: #f1f5f9; padding: 20px; color: #334155; line-height: 1.5; }
@@ -12,18 +12,15 @@
         h2 { margin-top: 0; color: #1e293b; font-size: 20px; border-bottom: 1px solid #e2e8f0; padding-bottom: 10px; }
         .clear-btn { position: absolute; top: 20px; right: 25px; background: #ef4444; color: white; border: none; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: bold; }
         .info-box { background: #eff6ff; padding: 12px; border-radius: 6px; font-size: 13px; color: #1e40af; margin-bottom: 15px; border: 1px solid #dbeafe; }
-        
         .table-container { overflow: auto; border: 1px solid #e2e8f0; border-radius: 8px; margin-top: 10px; max-height: 400px; background: #fff; }
         table { width: 100%; border-collapse: collapse; font-size: 13px; }
         th { background: #f8fafc; padding: 12px 10px; border-bottom: 2px solid #e2e8f0; text-align: left; position: sticky; top: 0; z-index: 10; white-space: nowrap; }
         td { padding: 8px 10px; border-bottom: 1px solid #f1f5f9; max-width: 250px; word-wrap: break-word; }
-
         .preview-header { display: flex; align-items: center; justify-content: space-between; margin-top: 20px; }
         .count-badge { color: white; padding: 4px 12px; border-radius: 20px; font-size: 14px; font-weight: bold; }
         .blue { background: #2563eb; } .green { background: #059669; } .orange { background: #f97316; } .gray { background: #94a3b8; }
-        
         .export-panel { background: #f8fafc; padding: 15px; border-radius: 8px; margin: 15px 0; border: 1px solid #e2e8f0; display: flex; align-items: center; gap: 10px; }
-        input[type="text"], input[type="file"] { padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; background: #fff; }
+        input[type="text"], input[type="file"] { padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; background: #fff; outline: none; }
         input[type="file"] { width: 100%; background: #f8fafc; cursor: pointer; margin-bottom: 10px; }
         .btn { width: 100%; padding: 15px; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; transition: 0.2s; margin-top: 10px; }
         .btn-blue { background: #2563eb; color: white; }
@@ -35,30 +32,20 @@
 <body>
 
 <div class="container">
-    
     <div class="card" id="card1">
-        <h2>第一階段：提取 9 項待出貨清單 (18 碼比對)</h2>
+        <h2>第一階段：提取 9 項待出貨清單 (18碼 + 品名降序)</h2>
         <button class="clear-btn" onclick="location.reload()">清除重整</button>
-        <div class="info-box">規則：提取「一般訂單」。匯出前按<b>品名</b>排序，再按<b>單品詳細</b>排序。</div>
+        <div class="info-box">規則：提取「一般訂單」。排序：品名(Z→A) ＞ 單品詳細(A→Z)。</div>
         <input type="file" id="s1_file" accept=".xlsx">
 
         <div id="s1_preview" class="preview-section" style="display:none;">
             <div class="preview-header">
-                <h3>✅ 符合：一般訂單 (預覽排序後結果)</h3>
+                <h3>✅ 符合：一般訂單 (品名降序預覽)</h3>
                 <span id="s1_total_count" class="count-badge blue">0 筆</span>
             </div>
             <div class="table-container">
                 <table><thead id="s1_h"></thead><tbody id="s1_b"></tbody></table>
             </div>
-
-            <div class="preview-header" style="margin-top: 30px;">
-                <h3 style="color:#94a3b8;">🚫 過濾：其他訂單 (含交換件)</h3>
-                <span id="s1_fail_count" class="count-badge gray">0 筆</span>
-            </div>
-            <div class="table-container">
-                <table style="color:#94a3b8;"><thead id="s1_hf"></thead><tbody id="s1_bf"></tbody></table>
-            </div>
-
             <div class="export-panel">
                 <label>📁 儲存檔名：</label>
                 <input type="text" id="s1_filename" value="MOMO待出貨清單" style="flex-grow:1;">
@@ -68,42 +55,23 @@
     </div>
 
     <div class="card step2" id="card2">
-        <h2>第二階段：回填貨單與特定狀態更新 (18 碼比對)</h2>
+        <h2>第二階段：回填貨單與特定狀態更新 (18碼)</h2>
         <button class="clear-btn" onclick="location.reload()">清除重整</button>
-        <div class="info-box">規則：比對編號<b>前 18 碼</b>。一般件對到貨號填新竹/已配送/原箱。交換件自動填入訊息。</div>
+        <div class="info-box">規則：比對前 18 碼。一般件對到貨號填新竹/已配送/原箱。交換件自動填入訊息。</div>
         <label>1. 上傳原始完整檔 (.xlsx)：</label><input type="file" id="s2_main" accept=".xlsx">
         <label>2. 上傳物流貨號檔 (.xlsx)：</label><input type="file" id="s2_track" accept=".xlsx">
 
         <button class="btn btn-orange" id="s2_run_btn" disabled>開始比對資料</button>
 
         <div id="s2_preview" class="preview-section" style="display:none;">
-            <div class="preview-header">
-                <h3>🔄 偵測到：交換配送訂單 (自動更新全預覽)</h3>
-                <span id="s2_count_exchange" class="count-badge orange">0 筆</span>
-            </div>
-            <div class="table-container">
-                <table>
-                    <thead><tr><th>訂單編號(18碼)</th><th>配送狀態</th><th>配送訊息</th><th>物流公司</th></tr></thead>
-                    <tbody id="s2_b_exchange"></tbody>
-                </table>
-            </div>
+            <div class="preview-header"><h3>🔄 交換配送訂單 (自動更新)</h3><span id="s2_count_exchange" class="count-badge orange">0 筆</span></div>
+            <div class="table-container"><table><thead><tr><th>訂單編號(18碼)</th><th>配送狀態</th><th>配送訊息</th><th>物流公司</th></tr></thead><tbody id="s2_b_exchange"></tbody></table></div>
 
-            <div class="preview-header" style="margin-top:20px;">
-                <h3>📦 配對成功：一般訂單 (更新貨單+包材全預覽)</h3>
-                <span id="s2_count_normal" class="count-badge green">0 筆</span>
-            </div>
-            <div class="table-container">
-                <table>
-                    <thead><tr><th>訂單編號(18碼)</th><th>配送單號</th><th>物流/狀態</th><th>出貨包材</th></tr></thead>
-                    <tbody id="s2_b_normal"></tbody>
-                </table>
-            </div>
+            <div class="preview-header" style="margin-top:20px;"><h3>📦 一般訂單 (更新貨單+包材)</h3><span id="s2_count_normal" class="count-badge green">0 筆</span></div>
+            <div class="table-container"><table><thead><tr><th>訂單編號(18碼)</th><th>配送單號</th><th>物流/狀態</th><th>出貨包材</th></tr></thead><tbody id="s2_b_normal"></tbody></table></div>
 
-            <div class="export-panel">
-                <label>📁 儲存檔名：</label>
-                <input type="text" id="s2_filename" value="MOMO完整格式回填更新檔" style="flex-grow:1;">
-            </div>
-            <button class="btn btn-green" id="s2_btn">確認預覽無誤，下載完整 Excel</button>
+            <div class="export-panel"><label>📁 儲存檔名：</label><input type="text" id="s2_filename" value="MOMO回填結果" style="flex-grow:1;"></div>
+            <button class="btn btn-green" id="s2_btn">下載完整回填 Excel</button>
         </div>
     </div>
 </div>
@@ -119,7 +87,7 @@
         return XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: "" });
     }
 
-    // --- 第一階段 ---
+    // 第一階段
     let s1_final_v = [];
     document.getElementById('s1_file').onchange = async (e) => {
         const file = e.target.files[0];
@@ -131,12 +99,14 @@
             let o = {};
             TARGET_9.forEach(c => { o[c] = row[findKey(row, c)] || ""; });
             if (rawCat.includes("一般")) v.push(o);
-            else { o["原因"] = rawCat.replace(/[\r\n]+/g, ' '); iv.push(o); }
         });
 
+        // 修改：排序邏輯
         v.sort((a, b) => {
-            if (a["品名"] < b["品名"]) return -1;
-            if (a["品名"] > b["品名"]) return 1;
+            // 品名：由大到小 (降序)
+            if (a["品名"] > b["品名"]) return -1;
+            if (a["品名"] < b["品名"]) return 1;
+            // 品名相同時，單品詳細：由小到大 (升序)
             if (a["單品詳細"] < b["單品詳細"]) return -1;
             if (a["單品詳細"] > b["單品詳細"]) return 1;
             return 0;
@@ -144,11 +114,8 @@
 
         s1_final_v = v;
         document.getElementById('s1_total_count').innerText = `${v.length} 筆`;
-        document.getElementById('s1_fail_count').innerText = `${iv.length} 筆`;
         document.getElementById('s1_h').innerHTML = `<tr>${TARGET_9.map(c=>`<th>${c}</th>`).join('')}</tr>`;
-        document.getElementById('s1_hf').innerHTML = `<tr>${TARGET_9.map(c=>`<th>${c}</th>`).join('')}<th>訂單類別</th></tr>`;
         document.getElementById('s1_b').innerHTML = v.map(r => `<tr>${TARGET_9.map(c=>`<td>${r[c]}</td>`).join('')}</tr>`).join('');
-        document.getElementById('s1_bf').innerHTML = iv.map(r => `<tr>${TARGET_9.map(c=>`<td>${r[c]}</td>`).join('')}<td>${r["原因"]}</td></tr>`).join('');
         document.getElementById('s1_preview').style.display = "block";
     };
 
@@ -159,7 +126,7 @@
         XLSX.writeFile(wb, `${document.getElementById('s1_filename').value}.xlsx`);
     };
 
-    // --- 第二階段 ---
+    // 第二階段
     let s2_main_json = null, s2_track_map = new Map();
     document.getElementById('s2_main').onchange = async (e) => { 
         s2_main_json = await readExcel(e.target.files[0]); 
@@ -171,7 +138,6 @@
         json.forEach(row => {
             const ok = row[findKey(row, "訂單編號")] || row[findKey(row, "訂單號碼")];
             const tk = row[findKey(row, "十碼貨號")] || row[findKey(row, "貨號")];
-            // 修改點：取 18 碼
             if(ok && tk) s2_track_map.set(String(ok).trim().substring(0, 18), String(tk).trim());
         });
     };
@@ -180,7 +146,6 @@
         let n = [], ex = [];
         s2_main_json.forEach(row => {
             const fullId = String(row[findKey(row, "訂單編號")] || row[findKey(row, "訂單號碼")] || "").trim();
-            // 修改點：取 18 碼
             const id18 = fullId.substring(0, 18);
             const rawCat = String(row[findKey(row, "訂單類別")] || "");
             if (rawCat.includes("交換")) {
@@ -201,7 +166,6 @@
         const result = s2_main_json.map(row => {
             const idKey = findKey(row, "訂單編號") || findKey(row, "訂單號碼");
             const fullId = String(row[idKey] || "").trim();
-            // 修改點：取 18 碼
             const id18 = fullId.substring(0, 18);
             const rawCat = String(row[findKey(row, "訂單類別")] || "");
             if (rawCat.includes("交換")) {
