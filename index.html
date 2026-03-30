@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>MOMO 訂單助手 (資料列複製版)</title>
+    <title>MOMO 訂單助手 (原始順序 + 雙匯出版)</title>
     <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/handsontable/dist/handsontable.full.min.css">
     <script src="https://cdn.jsdelivr.net/npm/handsontable/dist/handsontable.full.min.js"></script>
@@ -15,6 +15,7 @@
         .info-box { background: #eff6ff; padding: 10px; border-radius: 6px; font-size: 13px; color: #1e40af; margin-bottom: 15px; border: 1px solid #dbeafe; }
         
         #ht_wrapper { width: 100%; height: 350px; overflow: hidden; border: 1px solid #cbd5e1; border-radius: 6px; }
+        #ht_container { width: 100%; height: 100%; }
         
         .table-container { overflow: auto; border: 1px solid #e2e8f0; border-radius: 8px; margin-top: 10px; max-height: 500px; background: #fff; }
         table { width: 100%; border-collapse: collapse; font-size: 12px; table-layout: fixed; }
@@ -26,12 +27,12 @@
         .btn { padding: 10px 18px; border: none; border-radius: 8px; font-size: 14px; font-weight: bold; cursor: pointer; transition: 0.2s; margin-top: 10px; margin-right: 10px; }
         .btn-blue { background: #2563eb; color: white; }
         .btn-green { background: #059669; color: white; }
-        .btn-copy-all { background: #7c3aed; color: white; }
+        .btn-purple { background: #7c3aed; color: white; }
         .clear-btn { position: absolute; top: 20px; right: 25px; background: #ef4444; color: white; border: none; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 13px; z-index: 10; }
 
         .preview-header { display: flex; align-items: center; justify-content: space-between; margin-top: 20px; }
         .count-badge { color: white; padding: 4px 12px; border-radius: 20px; font-size: 13px; font-weight: bold; }
-        .blue { background: #2563eb; } .green { background: #059669; } .orange { background: #f97316; }
+        .blue { background: #2563eb; } .green { background: #059669; }
     </style>
 </head>
 <body>
@@ -41,13 +42,13 @@
     <div class="card">
         <h2>第一階段：網頁格子貼上資料</h2>
         <button class="clear-btn" onclick="location.reload()">清除重整</button>
-        <div class="info-box">教學：全選複製原始 Excel，貼入下方格子。</div>
+        <div class="info-box">教學：在 Excel 全選複製，點擊下方格子按 Ctrl+V 貼上。</div>
         <div id="ht_wrapper"><div id="ht_container"></div></div>
-        <button class="btn btn-blue" onclick="processS1()">1. 解析並產出排序清單</button>
+        <button class="btn btn-blue" onclick="processS1()">1. 解析並產出清單</button>
 
         <div id="s1_preview" style="display:none;">
             <div class="preview-header">
-                <h3>✅ 待出貨 9 項清單 (已排序)</h3>
+                <h3>✅ 待出貨 9 項清單 (原始順序)</h3>
                 <span id="s1_count" class="count-badge blue">0 筆</span>
             </div>
             <div class="table-container"><table id="s1_table"><thead><tr id="s1_h"></tr></thead><tbody id="s1_b"></tbody></table></div>
@@ -56,11 +57,15 @@
     </div>
 
     <div class="card step2">
-        <h2>最終回填區域 (不含標題，僅複製資料值)</h2>
-        <div class="info-box">複製後，請點擊 Excel **第一筆資料的第一格**（排除標題）按 Ctrl+V 貼上。</div>
+        <h2>最終回填區域 (對照原始內容 + 自動標註)</h2>
+        <div class="info-box">比對編號前 18 碼。黃色背景為程式自動填入的變動區域。</div>
         <input type="file" id="track_file" accept=".xlsx" style="margin-bottom:10px;">
         <button class="btn btn-green" id="run_btn" onclick="generateFinalTable()" disabled>2. 開始比對並標註變動</button>
-        <button class="btn btn-copy-all" id="copy_all_btn" onclick="copyDataOnly()" style="display:none;">📋 一鍵複製全資料值 (排除標題)</button>
+        
+        <div id="s2_actions" style="display:none;">
+            <button class="btn btn-purple" onclick="copyDataOnly()">📋 一鍵複製全資料值 (排除標題)</button>
+            <button class="btn btn-green" onclick="exportS2()">📥 下載回填結果 Excel</button>
+        </div>
 
         <div id="s2_preview" style="display:none; margin-top:20px;">
             <div class="table-container">
@@ -74,6 +79,7 @@
 <script>
     const T9 = ["項次+燈號", "訂單編號", "收件人姓名", "收件人電話", "收件人地址", "品號", "品名", "單品詳細", "數量"];
     let hot, rawHeaders = [], rawRows = [], trackMap = new Map();
+    let finalProcessedData = []; // 儲存第二階段處理後的完整資料
 
     hot = new Handsontable(document.getElementById('ht_container'), {
         data: [Array(30).fill("")], rowHeaders: true, colHeaders: true, minCols: 30, minRows: 50, contextMenu: true, stretchH: 'all', licenseKey: 'non-commercial-and-evaluation'
@@ -83,6 +89,7 @@
         return headers.findIndex(h => h.replace(/[\s\r\n\(\)（）]+/g, '').includes(name.replace(/\s+/g, '')));
     }
 
+    // 第一階段處理 (移除排序)
     function processS1() {
         const data = hot.getData();
         rawHeaders = data[0].map(h => String(h || "").trim());
@@ -94,12 +101,6 @@
             let o = {}; T9.forEach(h => o[h] = r[getIdx(rawHeaders, h)] || ""); return o;
         });
 
-        v.sort((a,b) => {
-            if (a["品名"] > b["品名"]) return -1; if (a["品名"] < b["品名"]) return 1;
-            if (a["單品詳細"] < b["單品詳細"]) return -1; if (a["單品詳細"] > b["單品詳細"]) return 1;
-            return 0;
-        });
-
         document.getElementById('s1_count').innerText = `${v.length} 筆`;
         document.getElementById('s1_h').innerHTML = T9.map(h=>`<th>${h}</th>`).join('');
         document.getElementById('s1_b').innerHTML = v.map(r => `<tr>${T9.map(h=>`<td>${r[h]}</td>`).join('')}</tr>`).join('');
@@ -109,16 +110,15 @@
     }
 
     function exportS1() {
-        const ws = XLSX.utils.json_to_sheet(rawRows.filter(r => String(r[getIdx(rawHeaders, "訂單類別")] || "").includes("一般")).map(r => {
+        const v = rawRows.filter(r => String(r[getIdx(rawHeaders, "訂單類別")] || "").includes("一般")).map(r => {
             let o = {}; T9.forEach(h => o[h] = r[getIdx(rawHeaders, h)] || ""); return o;
-        }).sort((a,b)=>{
-            if (a["品名"] > b["品名"]) return -1; if (a["品名"] < b["品名"]) return 1;
-            return a["單品詳細"] < b["單品詳細"] ? -1 : 1;
-        }));
+        });
+        const ws = XLSX.utils.json_to_sheet(v);
         const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "待出貨");
         XLSX.writeFile(wb, "MOMO待出貨清單.xlsx");
     }
 
+    // 第二階段比對
     document.getElementById('track_file').onchange = async (e) => {
         const ab = await e.target.files[0].arrayBuffer();
         const wb = XLSX.read(ab, { type: 'array' });
@@ -135,6 +135,7 @@
         const body = document.getElementById('final_b');
         document.getElementById('final_h').innerHTML = `<tr>${rawHeaders.map(h=>`<th>${h}</th>`).join('')}</tr>`;
         body.innerHTML = "";
+        finalProcessedData = [];
 
         const idx = {
             id: getIdx(rawHeaders, "訂單編號"),
@@ -163,6 +164,7 @@
                 newRow[idx.pkg] = "原箱"; changed.add(idx.pkg);
             }
 
+            finalProcessedData.push(newRow);
             const tr = document.createElement('tr');
             newRow.forEach((cell, i) => {
                 const td = document.createElement('td');
@@ -174,25 +176,26 @@
         });
 
         document.getElementById('s2_preview').style.display = 'block';
-        document.getElementById('copy_all_btn').style.display = 'inline-block';
+        document.getElementById('s2_actions').style.display = 'block';
     }
 
-    // 🔴 修改點：只複製資料行 (從 tbody 抓)
     function copyDataOnly() {
-        const body = document.getElementById('final_b');
         let text = "";
-        const rows = Array.from(body.querySelectorAll('tr'));
-        
-        rows.forEach(tr => {
-            const cells = Array.from(tr.querySelectorAll('td')).map(td => td.innerText);
-            text += cells.join('\t') + '\n';
+        finalProcessedData.forEach(row => {
+            text += row.join('\t') + '\n';
         });
-
-        if (!text) return alert("沒有資料可以複製！");
-
         navigator.clipboard.writeText(text).then(() => {
-            alert("✅ 全資料值已複製 (排除標題)！\n請回到 Excel，點擊第一筆資料的左上角第一格貼上。");
+            alert("✅ 已複製全資料值 (排除標題)！\n請回到 Excel 點擊第一筆資料左上角貼上。");
         });
+    }
+
+    function exportS2() {
+        // 將標題與資料合併進行匯出
+        const exportData = [rawHeaders, ...finalProcessedData];
+        const ws = XLSX.utils.aoa_to_sheet(exportData);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "回填結果");
+        XLSX.writeFile(wb, "MOMO完整回填更新檔.xlsx");
     }
 </script>
 </body>
